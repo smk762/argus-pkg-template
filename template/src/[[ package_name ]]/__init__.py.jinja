@@ -1,0 +1,16 @@
+"""[[ project_name ]] — [[ description ]]"""
+
+from __future__ import annotations
+
+try:
+    # Written by hatch-vcs at build time (see pyproject [tool.hatch.build.hooks.vcs]).
+    from [[ package_name ]]._version import __version__
+except ImportError:  # running from a source checkout that hasn't been built
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        __version__ = version("[[ project_name ]]")
+    except PackageNotFoundError:
+        __version__ = "0.0.0+unknown"
+
+__all__ = ["__version__"]

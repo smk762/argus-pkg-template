@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    uses: [[ github_owner ]]/argus-ci/.github/workflows/python-ci.yml@v1
+    with:
+[% if ruff_pin %]      ruff-version: "[[ ruff_pin ]]"
+[% endif %]      test-extras: "[[ test_extras ]]"
+[% if post_test %]      post-test: "[[ post_test ]]"
+[% endif %]

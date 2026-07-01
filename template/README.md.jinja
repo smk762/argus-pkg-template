@@ -1,0 +1,28 @@
+# [[ project_name ]]
+
+[[ description ]]
+
+Part of the [Argus suite](https://github.com/[[ github_owner ]]?tab=repositories&q=argus).
+
+## Install
+
+```bash
+uv pip install [[ project_name ]]
+```
+
+## Develop
+
+```bash
+make install   # venv + editable install with the "[[ test_extras ]]" extras
+make test
+make lint
+```
+
+## CI / Release
+
+- **CI** runs via the shared [`argus-ci`](https://github.com/[[ github_owner ]]/argus-ci) reusable workflow.
+- **Release** publishes to PyPI (OIDC trusted publishing) and GHCR on `v*` tags.
+- Versioning is derived from git tags via `hatch-vcs` — tag `vX.Y.Z` to cut a release.
+
+This repo was scaffolded from [`argus-pkg-template`](https://github.com/[[ github_owner ]]/argus-pkg-template).
+Run `copier update` to pull template changes (CI, release, tooling).

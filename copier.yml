@@ -1,0 +1,85 @@
+_min_copier_version: "9.0.0"
+_subdirectory: template
+
+# GitHub Actions and Docker both use {{ }} / ${{ }}. Swap Jinja's delimiters to
+# [[ ]] / [% %] so those pass through templated workflow files untouched.
+_envops:
+  block_start_string: "[%"
+  block_end_string: "%]"
+  variable_start_string: "[["
+  variable_end_string: "]]"
+  comment_start_string: "[#"
+  comment_end_string: "#]"
+
+project_name:
+  type: str
+  help: "Distribution / pip name (e.g. argus-widget)"
+
+package_name:
+  type: str
+  help: "Python import name"
+  default: "[[ project_name | replace('-', '_') ]]"
+
+description:
+  type: str
+  help: "One-line project description"
+
+author:
+  type: str
+  default: "smk762"
+
+github_owner:
+  type: str
+  default: "smk762"
+
+python_min:
+  type: str
+  help: "Minimum supported Python"
+  default: "3.11"
+  choices:
+    - "3.11"
+    - "3.12"
+
+has_cli:
+  type: bool
+  help: "Expose a Typer CLI entry point?"
+  default: true
+
+cli_name:
+  type: str
+  default: "[[ project_name ]]"
+  when: "[[ has_cli ]]"
+
+has_server:
+  type: bool
+  help: "Include a FastAPI server extra + Docker CMD?"
+  default: false
+
+test_extras:
+  type: str
+  help: "Extras installed for tests (comma-separated, no brackets)"
+  default: "dev"
+
+ruff_pin:
+  type: str
+  help: "Pin ruff via uvx (blank = latest)"
+  default: "0.15.16"
+
+post_test:
+  type: str
+  help: "Optional command run after pytest in CI (blank = none)"
+  default: ""
+
+dockerfile:
+  type: str
+  help: "Dockerfile used by the release image build"
+  default: "Dockerfile"
+
+image_name:
+  type: str
+  default: "[[ project_name ]]"
+
+version_build_arg:
+  type: bool
+  help: "Pass VERSION build-arg to docker build (needed when the Dockerfile excludes .git)"
+  default: false

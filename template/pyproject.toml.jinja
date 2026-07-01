@@ -1,0 +1,58 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+name = "[[ project_name ]]"
+dynamic = ["version"]
+description = "[[ description ]]"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=[[ python_min ]]"
+authors = [{ name = "[[ author ]]" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = [
+    "structlog>=24.0",
+]
+
+[project.optional-dependencies]
+[% if has_server %]server = ["fastapi>=0.110", "uvicorn>=0.27", "python-multipart>=0.0.7"]
+[% endif %][% if has_cli %]cli = ["typer>=0.12", "rich>=13.0"]
+[% endif %]dev = ["pytest>=8.0", "pytest-asyncio>=0.23", [% if ruff_pin %]"ruff==[[ ruff_pin ]]"[% else %]"ruff>=0.5"[% endif %]]
+[% if has_cli %]
+[project.scripts]
+[[ cli_name ]] = "[[ package_name ]].cli:app"
+[% endif %]
+[project.urls]
+Repository = "https://github.com/[[ github_owner ]]/[[ project_name ]]"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/[[ package_name ]]/_version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/[[ package_name ]]"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+extend-exclude = ["src/[[ package_name ]]/_version.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = ["E501", "B008"]
