@@ -5,8 +5,22 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-# hatch-vcs derives the version from git history, so the build context must
-# include .git (keep it out of .dockerignore for this image).
+[% if version_build_arg %]# The version is supplied by the caller, so this image needs neither .git in the
+# build context nor a git binary. setuptools-scm (under hatch-vcs) reads the
+# pretend-version env var instead of walking git history. It must be the plain
+# SETUPTOOLS_SCM_PRETEND_VERSION -- hatch-vcs does not pass a dist name through
+# to setuptools-scm, so the ..._FOR_<DIST> spelling is ignored. The default
+# keeps a bare `docker build .` working locally; CI passes the real tag.
+ARG VERSION=0.0.0.dev0
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=$VERSION
+[% else %]# hatch-vcs derives the version from git history, so the build context must
+# include .git (keep it out of .dockerignore for this image) and the image must
+# have the git binary -- python:*-slim does not ship one, and without it the
+# install below fails with "unable to detect version".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+[% endif %]
 COPY . .
 
 RUN uv pip install --system --no-cache "[[ '.[server]' if has_server else '.' ]]"
