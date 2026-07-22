@@ -81,5 +81,5 @@ image_name:
 
 version_build_arg:
   type: bool
-  help: "Pass VERSION build-arg to docker build (needed when the Dockerfile excludes .git)"
+  help: "Build the image from a VERSION build-arg instead of git history (excludes .git, skips installing git)"
   default: false
