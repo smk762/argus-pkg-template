@@ -13,6 +13,7 @@ What you get:
 - **Release** to PyPI (OIDC trusted publishing) + GHCR on `v*` tags
   - kept as a *top-level* workflow because PyPI trusted publishing can't run inside a reusable workflow
 - `src/` layout, `py.typed`, a smoke test, MIT license
+- a starter `CLAUDE.md` — agent orientation seeded with the suite conventions, ready to flesh out
 
 ## Create a new package
 
