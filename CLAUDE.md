@@ -23,6 +23,10 @@ A [Copier](https://copier.readthedocs.io) template that scaffolds new Python pac
 - The **release** workflow is intentionally a top-level workflow, not a call into `argus-ci`: PyPI trusted publishing can't run inside a reusable workflow.
 - When you add a new templated file, no registration is needed — Copier renders everything under `template/`. Just make sure it uses the remapped delimiters.
 
+## Branches
+
+`dev` is the default branch and the base for every PR. Cut feature branches from `origin/dev` and bring them up to date by merging `origin/dev`, never `main`. Never open a PR against `main` or push work to it directly: `main` must never be ahead of `dev`. A release fast-forwards `main` to a `dev` commit that passed CI (`git push origin origin/dev:main`), then tags it. If `main` is protected and needs a PR, merge the release PR, then immediately merge `main` back into `dev` so the merge commit is not left on `main` alone.
+
 ## Gotchas
 
 - Adding a question to `copier.yml` without a default breaks non-interactive scaffolds — give it a default or a `when:`.
