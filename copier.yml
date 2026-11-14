@@ -24,6 +24,11 @@ description:
   type: str
   help: "One-line project description"
 
+brand_mark:
+  type: bool
+  help: "Use the package's lockup from argus-cortex brand/ as the README title? (Only once a mark for it exists in brand/packages/)"
+  default: false
+
 author:
   type: str
   default: "smk762"
