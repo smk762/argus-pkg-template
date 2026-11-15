@@ -53,4 +53,4 @@ Run one test: `uv run --no-sync pytest tests/test_x.py::test_name -q`.
 
 ## CI / release
 
-CI runs via the shared [`argus-ci`](https://github.com/[[ github_owner ]]/argus-ci) reusable workflow. Release publishes to PyPI (OIDC trusted publishing) + GHCR on `v*` tags. Run `copier update` to pull template (CI/release/tooling) changes.
+CI runs via the shared [`argus-ci`](https://github.com/[[ github_owner ]]/argus-ci) reusable workflow. `docs.yml` runs its `docs-check` on every push: published docs (`README.md`, `docs/**/*.md`) must hold no private IPs, home/server paths or personal emails (use placeholders like `<GPU_HOST>`)[% if has_cli %], and `docs/cli.md` must match the CLI — run `make docs` after changing a command[% endif %]. Release publishes to PyPI (OIDC trusted publishing) + GHCR on `v*` tags. Run `copier update` to pull template (CI/release/tooling) changes.

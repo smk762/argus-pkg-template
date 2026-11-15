@@ -10,6 +10,7 @@ What you get:
 - `hatchling` + `hatch-vcs` — versions derived from git tags, no hand-edited version strings
 - `ruff` lint/format config matching the rest of the suite
 - **CI** wired to the shared [`argus-ci`](https://github.com/smk762/argus-ci) reusable workflow
+- **Docs check** (`docs.yml` → argus-ci `docs-check.yml`): generated `docs/cli.md` must match the Typer CLI (`make docs` regenerates it), and published docs are scanned for private IPs, paths and emails
 - **Release** to PyPI (OIDC trusted publishing) + GHCR on `v*` tags
   - kept as a *top-level* workflow because PyPI trusted publishing can't run inside a reusable workflow
 - `src/` layout, `py.typed`, a smoke test, MIT license
