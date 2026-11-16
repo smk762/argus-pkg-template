@@ -18,3 +18,8 @@ jobs:
 [% endif %]      test-extras: "[[ test_extras ]]"
 [% if post_test %]      post-test: "[[ post_test ]]"
 [% endif %]
+
+  suite-rules:
+    # argus-ci suite rules: lint rules that each eliminate a finding class. New violations fail;
+    # existing ones are in .suite-rules-baseline.json, which may only shrink.
+    uses: [[ github_owner ]]/argus-ci/.github/workflows/suite-rules.yml@v1
