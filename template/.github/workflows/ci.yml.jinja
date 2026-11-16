@@ -10,6 +10,9 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     uses: [[ github_owner ]]/argus-ci/.github/workflows/python-ci.yml@v1

@@ -42,9 +42,12 @@ changes — handy for propagating CI/release/tooling updates across the suite.
 | `project_name`      | —                                | Distribution / pip name (e.g. `argus-widget`).      |
 | `package_name`      | `project_name` with `-`→`_`      | Python import name.                                 |
 | `description`       | —                                | One-liner for pyproject + README.                   |
+| `author`            | `smk762`                         | Author in pyproject and LICENSE.                    |
+| `github_owner`      | `smk762`                         | GitHub owner used in links and the argus-ci workflow calls. |
 | `brand_mark`        | `false`                          | README title is the package lockup from argus-cortex `brand/` (light/dark). Turn on once `brand/packages/<name>/` exists. |
 | `python_min`        | `3.11`                           | Minimum Python.                                     |
 | `has_cli`           | `true`                           | Adds a Typer `cli` extra + console script.          |
+| `cli_name`          | `project_name`                   | Console script name (asked only when `has_cli`).    |
 | `has_server`        | `false`                          | Adds a FastAPI `server` extra + Docker `CMD`.       |
 | `test_extras`       | `dev`                            | Extras installed for tests / CI.                    |
 | `ruff_pin`          | `0.15.16`                        | Pin ruff (blank = latest).                          |
