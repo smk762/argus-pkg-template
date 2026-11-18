@@ -29,7 +29,12 @@ ASKED_ON_PURPOSE = {"project_name", "description"}
 
 def questions(path: Path = ROOT / "copier.yml") -> dict[str, dict]:
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return {k: (v or {}) for k, v in data.items() if not k.startswith("_")}
+    # Copier's shorthand `name: value` makes the scalar the default. A bare `name:` has none.
+    return {
+        k: v if isinstance(v, dict) else {} if v is None else {"default": v}
+        for k, v in data.items()
+        if not k.startswith("_")
+    }
 
 
 def unanswerable(qs: dict[str, dict]) -> list[str]:
@@ -48,7 +53,8 @@ def stray(rendered: Path, names: set[str] | None = None) -> list[str]:
     pattern = _stray_pattern(names if names is not None else set(questions()))
     out = []
     for p in sorted(rendered.rglob("*")):
-        if not p.is_file() or ".git" in p.parts or ".venv" in p.parts:
+        rel = p.relative_to(rendered)  # an ancestor of `rendered` named .git or .venv must not skip the render
+        if not p.is_file() or ".git" in rel.parts or ".venv" in rel.parts:
             continue
         try:
             text = p.read_text(encoding="utf-8")
@@ -56,7 +62,7 @@ def stray(rendered: Path, names: set[str] | None = None) -> list[str]:
             continue
         for n, line in enumerate(text.splitlines(), 1):
             if pattern.search(line):
-                out.append(f"{p.relative_to(rendered)}:{n}: {line.strip()}")
+                out.append(f"{rel}:{n}: {line.strip()}")
     return out
 
 

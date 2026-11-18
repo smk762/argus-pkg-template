@@ -13,6 +13,26 @@ class Checks(unittest.TestCase):
         qs = {"project_name": {}, "a": {"default": "x"}, "b": {"when": "[[ x ]]"}, "c": {"type": "str"}}
         self.assertEqual(ct.unanswerable(qs), ["c"])
 
+    def test_shorthand_questions_become_dicts_that_keep_their_default(self):
+        with tempfile.TemporaryDirectory() as d:
+            f = Path(d) / "copier.yml"
+            f.write_text("_min: 1\na: my-pkg\nb: false\nc: 0\nd: [x, y]\ne:\nf:\n  type: str\n")
+            qs = ct.questions(f)
+        self.assertEqual(qs, {"a": {"default": "my-pkg"}, "b": {"default": False}, "c": {"default": 0},
+                              "d": {"default": ["x", "y"]}, "e": {}, "f": {"type": "str"}})
+        self.assertEqual(ct.unanswerable(qs), ["e", "f"])
+
+    def test_stray_looks_inside_a_render_that_sits_under_a_git_or_venv_directory(self):
+        with tempfile.TemporaryDirectory() as d:
+            for ancestor in (".git", ".venv"):
+                rendered = Path(d) / ancestor / "out"
+                (rendered / ".git").mkdir(parents=True)
+                (rendered / ".venv").mkdir()
+                (rendered / "README.md").write_text("# {{ project_name }}\n")
+                (rendered / ".git" / "x").write_text("{{ project_name }}\n")
+                (rendered / ".venv" / "x").write_text("{{ project_name }}\n")
+                self.assertEqual(ct.stray(rendered, {"project_name"}), ["README.md:1: # {{ project_name }}"])
+
     def test_stray_stock_delimiters_are_found_but_actions_and_docker_patterns_are_not(self):
         with tempfile.TemporaryDirectory() as d:
             (Path(d) / "release.yml").write_text(
