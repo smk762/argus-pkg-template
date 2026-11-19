@@ -41,11 +41,21 @@ class Checks(unittest.TestCase):
             (Path(d) / "README.md").write_text("# {{ project_name }}\n{% if x %}\n")
             self.assertEqual(len(ct.stray(Path(d), {"project_name"})), 2)
 
+    def test_stray_finds_a_question_that_is_not_the_first_thing_in_the_braces(self):
+        with tempfile.TemporaryDirectory() as d:
+            (Path(d) / "Makefile").write_text(
+                "a {{ '[' ~ test_extras ~ ']' }}\nb {{ 1 if has_cli else 0 }}\nc {{version}} ${{ has_cli }}\n")
+            self.assertEqual(len(ct.stray(Path(d), {"test_extras", "has_cli", "version_build_arg"})), 2)
+            self.assertEqual(ct.stray(Path(d), set()), [])
+
     def test_the_seed_keeps_the_suite_block_and_the_dev_link(self):
         with tempfile.TemporaryDirectory() as d:
             self.assertEqual(len(ct.seed(Path(d))), 1)
             (Path(d) / "CLAUDE.md").write_text("<!-- argus-suite -->\nhttps://github.com/x/argus-cortex/blob/main/SUITE.md\n")
-            self.assertEqual(len(ct.seed(Path(d))), 1)
+            self.assertEqual(len(ct.seed(Path(d))), 2)
+            (Path(d) / "CLAUDE.md").write_text(
+                "<!-- argus-suite -->\nx/argus-cortex/blob/dev/SUITE.md\nx/argus-cortex/blob/main/SUITE.md\n")
+            self.assertEqual(ct.seed(Path(d)), ["the rendered CLAUDE.md links the suite map on main"])
 
     def test_this_template_passes(self):
         self.assertEqual(ct.unanswerable(ct.questions()), [])

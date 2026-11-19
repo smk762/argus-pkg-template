@@ -5,12 +5,12 @@
     non-interactive scaffolds and prompts on every `copier update` of an existing repo. Only the
     questions in ASKED_ON_PURPOSE may be asked.
   * README.md's questions table lists exactly the questions in copier.yml.
-  * With --rendered DIR: no copier question in stock `{{ }}`, and no `{% %}` block, survives a render.
+  * With --rendered DIR: no stock `{{ }}` that mentions a copier question, and no `{% %}` block, survives a render.
     The template's delimiters are `[[ ]]` / `[% %]`, so stock Jinja is copied through as literal text.
     Other `{{ }}` is left alone on purpose: GitHub's `${{ }}` and docker/metadata-action's
     `{{version}}` must pass through.
     The rendered CLAUDE.md keeps the argus-suite block (argus-ci's suite-check needs it) and links
-    the suite map on `dev`.
+    the suite map on `dev`, never on `main`.
 
 Usage: check_template.py [--rendered DIR ...]   (needs PyYAML)
 """
@@ -46,7 +46,10 @@ def readme_questions(path: Path = ROOT / "README.md") -> set[str]:
 
 
 def _stray_pattern(names: set[str]) -> re.Pattern[str]:
-    return re.compile(r"\{%|(?<!\$)\{\{-?\s*(" + "|".join(sorted(map(re.escape, names))) + r")\b")
+    # A question anywhere inside the braces, so `{{ '[' ~ test_extras ~ ']' }}` and `{{ 1 if x else 0 }}` count.
+    if not names:
+        return re.compile(r"\{%")
+    return re.compile(r"\{%|(?<!\$)\{\{[^{}]*?\b(" + "|".join(sorted(map(re.escape, names))) + r")\b")
 
 
 def stray(rendered: Path, names: set[str] | None = None) -> list[str]:
@@ -76,6 +79,8 @@ def seed(rendered: Path) -> list[str]:
         out.append("the rendered CLAUDE.md lacks the argus-suite block")
     if "argus-cortex/blob/dev/SUITE.md" not in text:
         out.append("the rendered CLAUDE.md doesn't link the suite map on dev")
+    if "argus-cortex/blob/main/SUITE.md" in text:
+        out.append("the rendered CLAUDE.md links the suite map on main")
     return out
 
 

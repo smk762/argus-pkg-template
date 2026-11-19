@@ -11,6 +11,9 @@ on:
   pull_request:
     branches: [dev, main]
 
+permissions:
+  contents: read
+
 jobs:
   docs:
     uses: [[ github_owner ]]/argus-ci/.github/workflows/docs-check.yml@v1
