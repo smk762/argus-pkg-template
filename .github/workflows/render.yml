@@ -1,0 +1,49 @@
+name: render
+
+# The template's own CI. A broken Jinja expression only surfaces at scaffold time, so every PR renders
+# the template with has_cli and has_server on and off, then lints and tests what it produced.
+# scripts/check_template.py also checks that every question has a default or a `when:`, that the
+# README questions table matches copier.yml, and that no stock `{{ }}` / `{% %}` survives a render.
+
+on:
+  pull_request:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - run: uv run --no-project --with pyyaml python -m unittest scripts/test_check_template.py
+      - run: uv run --no-project --with pyyaml python scripts/check_template.py
+
+  render:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        has_cli: [true, false]
+        has_server: [true, false]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # copier renders from the git HEAD
+      - uses: astral-sh/setup-uv@v7
+      - name: Render
+        run: |
+          uvx copier copy --trust --defaults --vcs-ref HEAD . "$RUNNER_TEMP/out" \
+            --data project_name=argus-render-check --data description="Render check" \
+            --data has_cli=${{ matrix.has_cli }} --data has_server=${{ matrix.has_server }}
+      - name: No stock Jinja delimiters survived
+        run: uv run --no-project --with pyyaml python scripts/check_template.py --rendered "$RUNNER_TEMP/out"
+      - name: The rendered package installs, lints and passes its tests
+        working-directory: ${{ runner.temp }}/out
+        run: |
+          git init -q && git add -A
+          git -c user.name=ci -c user.email=ci@example.invalid commit -qm render # hatch-vcs needs history
+          make install lint test
