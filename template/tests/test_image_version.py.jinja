@@ -33,9 +33,13 @@ def _build_step() -> dict:
 def test_release_passes_the_tag_version_as_a_build_arg() -> None:
     build = _build_step()["with"]
     args = dict(line.split("=", 1) for line in str(build.get("build-args", "")).split("\n") if "=" in line)
-    # metadata-action's version is the tag without the v; on a cortex dispatch the tag is the newest release's.
+[% if gpu_variant %]    # The tag without the v (meta's version carries the -gpu suffix); on a cortex dispatch, the newest release's tag.
+    assert args.get("VERSION", "").strip() == "${{ steps.ver.outputs.version }}", build.get("build-args")
+    ver = next(s for s in _image_steps() if s.get("id") == "ver")
+    assert ver["env"]["TAG"] == "${{ needs.release-tag.outputs.tag }}" and "${TAG#v}" in ver["run"]
+[% else %]    # metadata-action's version is the tag without the v; on a cortex dispatch the tag is the newest release's.
     assert args.get("VERSION", "").strip() == "${{ steps.meta.outputs.version }}", build.get("build-args")
-    meta = next(s for s in _image_steps() if s.get("id") == "meta")
+[% endif %]    meta = next(s for s in _image_steps() if s.get("id") == "meta")
     assert "value=${{ needs.release-tag.outputs.tag }}" in meta["with"]["tags"]
 
 
@@ -51,6 +55,13 @@ def test_dockerfile_builds_the_wheel_with_the_version_arg() -> None:
     assert not any(re.match(r"\s*ENV\s.*SETUPTOOLS_SCM_PRETEND_VERSION", line) for line in lines)
 
 
+def test_only_a_final_release_moves_latest() -> None:
+    """The trigger is ``v*``: an unguarded ``type=raw,value=latest`` moves ``latest`` onto a ``v0.2.0-rc1``."""
+    meta = next(s for s in _image_steps() if s.get("id") == "meta")
+    latest = [line.strip() for line in meta["with"]["tags"].splitlines() if "value=latest" in line]
+    assert latest == ["type=raw,value=latest,enable=${{ !contains(needs.release-tag.outputs.tag, '-') }}"], latest
+
+
 def test_release_checks_the_image_version_before_pushing() -> None:
     steps = _image_steps()
     build = steps.index(_build_step())
@@ -62,7 +73,30 @@ def test_release_checks_the_image_version_before_pushing() -> None:
     assert build < check < push
 
 
-def _ignored(path: str, patterns: list[str]) -> bool:
+[% if gpu_variant %]def test_release_publishes_a_cpu_and_a_gpu_image() -> None:
+    workflow = yaml.safe_load((ROOT / ".github" / "workflows" / "release.yml").read_text())
+    job = workflow["jobs"]["publish-image"]
+    assert job["strategy"]["matrix"]["include"] == [{"gpu": "0", "suffix": ""}, {"gpu": "1", "suffix": "-gpu"}]
+    build = _build_step()["with"]
+    args = dict(line.split("=", 1) for line in str(build.get("build-args", "")).split("\n") if "=" in line)
+    assert args.get("GPU", "").strip() == "${{ matrix.gpu }}", build.get("build-args")
+    # One GHA cache per variant: a shared scope lets each build evict the other's layers.
+    for key in ("cache-from", "cache-to"):
+        assert "scope=image${{ matrix.suffix }}" in build[key], build[key]
+    meta = next(s for s in _image_steps() if s.get("id") == "meta")
+    assert "suffix=${{ matrix.suffix }},onlatest=true" in meta["with"]["flavor"]
+    # The check compares against the package version, not meta's suffixed one.
+    check = next(s for s in _image_steps() if s.get("id") == "version-check")
+    assert check["env"]["WANT"] == args["VERSION"].strip()
+
+
+def test_dockerfile_takes_the_gpu_arg() -> None:
+    text = DOCKERFILE.read_text()
+    assert re.search(r"^\s*ARG\s+GPU=0\s*$", text, re.MULTILINE), "the Dockerfile declares no ARG GPU=0"
+    assert '"$GPU" = "1"' in text, "GPU=1 must choose the gpu extra"
+
+
+[% endif %]def _ignored(path: str, patterns: list[str]) -> bool:
     """Whether a ``.dockerignore`` pattern drops ``path`` or one of its parent directories (no ``!`` support)."""
     parts = path.split("/")
     prefixes = ["/".join(parts[: i + 1]) for i in range(len(parts))]
@@ -80,7 +114,10 @@ def _ignored(path: str, patterns: list[str]) -> bool:
 
 def test_dockerignore_drops_no_tracked_file() -> None:
     """Git inside the build sees a dropped tracked file as deleted, so the tree reads dirty."""
-    if not shutil.which("git") or not (ROOT / ".git").exists():
+[% if version_build_arg %]    # version_build_arg: .git stays out of the context and the image has no git, so the version is always the
+    # VERSION build-arg and leaving tracked files out (an allow-list .dockerignore) cannot dirty it.
+    pytest.skip("the build has no git, so a dropped tracked file cannot change the version")
+[% endif %]    if not shutil.which("git") or not (ROOT / ".git").exists():
         pytest.skip("not a git checkout")
     lines = (ROOT / ".dockerignore").read_text().splitlines()
     patterns = [line.strip().lstrip("/") for line in lines if line.strip() and not line.startswith("#")]

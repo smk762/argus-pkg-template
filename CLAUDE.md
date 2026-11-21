@@ -12,7 +12,9 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
 
 | Never | Enforced by |
 |---|---|
-| A render that fails, or whose package doesn't install, lint or pass its tests, with `has_cli` / `has_server` on or off | `render.yml` (a matrix over both flags) |
+| A render that fails, or whose package doesn't install, lint or pass its tests, with `has_cli` / `has_server` / `gpu_variant` on or off | `render.yml` (a matrix over `has_cli` x `has_server` x `python_min`, plus two `gpu_variant: true` entries) |
+| A rendered workflow actionlint rejects | `render.yml` (actionlint on every render) |
+| `gpu_variant: false` changing a rendered file (an existing package must update to the same bytes) | **UNENFORCED**: render before/after with `--defaults --data-file` and `diff -r` (only `.copier-answers.yml` may differ) |
 | A question with no `default` and no `when:` (it breaks non-interactive scaffolds and prompts on every `copier update`) | `scripts/check_template.py`, which allows only `project_name` and `description` to be asked |
 | README's questions table out of step with `copier.yml` | `scripts/check_template.py` |
 | Stock `{{ }}` / `{% %}` in a template file (copied through as literal text) | `scripts/check_template.py --rendered` |
@@ -20,6 +22,7 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
 | The release workflow made a call into argus-ci | PyPI refuses trusted publishing from a reusable workflow (its `job_workflow_ref` check) |
 | A generated workflow testing a Python outside `requires-python` (a hard-coded 3.11 failed argus-scout's first release) | `render.yml` renders `python_min` 3.11 and 3.12; the package's `tests/test_workflows.py` |
 | A generated image reporting a different version than its tag (argus-scout 0.1.0 shipped as `0.1.1.dev0+g<sha>.d<date>`) | The generated release builds with `VERSION` from the tag and pushes only after the image reports it; the package's `tests/test_image_version.py` (build-arg wired, `.dockerignore` drops no tracked file) |
+| A pre-release tag (`v0.2.0-rc1`) moving a generated image's `latest` (the `v*` trigger matches it; argus-forge and argus-puppet each patched this locally) | The package's `tests/test_image_version.py::test_only_a_final_release_moves_latest` |
 | A seed whose Branches text differs from the suite's shared rule | **UNENFORCED** |
 
 ## Layout
@@ -35,7 +38,7 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
   ```bash
   uvx copier copy --trust . /tmp/scaffold-test --data project_name=argus-x --data description="x" --defaults
   ```
-  Try it with `has_cli` / `has_server` both on and off — those flags gate whole blocks (`[% if has_server %]…[% endif %]`).
+  Try it with `has_cli` / `has_server` / `gpu_variant` on and off — those flags gate whole blocks (`[% if has_server %]…[% endif %]`).
 - Conditional fields use `when:` in `copier.yml` (e.g. `cli_name` only when `has_cli`). Whitespace in `[% if %]` blocks is load-bearing in rendered output (pyproject/Dockerfile) — match the existing style.
 - The **release** workflow is intentionally a top-level workflow, not a call into `argus-ci`: PyPI trusted publishing can't run inside a reusable workflow.
 - When you add a new templated file, no registration is needed — Copier renders everything under `template/`. Just make sure it uses the remapped delimiters.

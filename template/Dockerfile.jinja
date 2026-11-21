@@ -29,10 +29,20 @@ COPY . .
 # SETUPTOOLS_SCM_PRETEND_VERSION_FOR_<DIST> is ignored.
 # tests/test_image_version.py keeps this wired to the release workflow.
 ARG VERSION=""
-RUN ([% if version_build_arg %]export SETUPTOOLS_SCM_PRETEND_VERSION="${VERSION:-0.0.0.dev0}"[% else %]if [ -n "$VERSION" ]; then export SETUPTOOLS_SCM_PRETEND_VERSION="$VERSION"; fi[% endif %] \
+[% if gpu_variant %]# GPU=1 builds the CUDA image (the release publishes it as <tag>-gpu): the
+# package's [gpu] extra instead of [cpu], so pyproject.toml declares both. For
+# ONNX Runtime they are onnxruntime-gpu and onnxruntime, which share one module
+# directory, so exactly one may be installed. The CUDA and cuDNN runtimes can
+# come as NVIDIA's pip wheels (onnxruntime-gpu[cuda,cudnn]) so the base stays
+# python-slim. Running it needs the NVIDIA container runtime. The default (0)
+# is the CPU image.
+ARG GPU=0
+[% endif %]RUN ([% if version_build_arg %]export SETUPTOOLS_SCM_PRETEND_VERSION="${VERSION:-0.0.0.dev0}"[% else %]if [ -n "$VERSION" ]; then export SETUPTOOLS_SCM_PRETEND_VERSION="$VERSION"; fi[% endif %] \
         && uv build --wheel --out-dir /tmp/dist) \
-    && uv pip install --system --no-cache "$(ls /tmp/dist/*.whl)[[ '[server]' if has_server else '' ]]" \
-    && rm -rf /tmp/dist
+[% if gpu_variant %]    && if [ "$GPU" = "1" ]; then extra=gpu; else extra=cpu; fi \
+    && uv pip install --system --no-cache "$(ls /tmp/dist/*.whl)[[ '[server,${extra}]' if has_server else '[${extra}]' ]]" \
+[% else %]    && uv pip install --system --no-cache "$(ls /tmp/dist/*.whl)[[ '[server]' if has_server else '' ]]" \
+[% endif %]    && rm -rf /tmp/dist
 
 [% if has_server %]EXPOSE 8000
 CMD ["uvicorn", "[[ package_name ]].server.app:app", "--host", "0.0.0.0", "--port", "8000"]

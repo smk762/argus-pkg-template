@@ -128,7 +128,18 @@ jobs:
     # On a cortex dispatch test-install is skipped (nothing was built for PyPI),
     # so the job runs on the tag alone.
     if: "!cancelled() && needs.release-tag.outputs.tag != '' && (needs.test-install.result == 'success' || github.event_name == 'repository_dispatch')"
-    permissions:
+[% if gpu_variant %]    # The CPU image keeps its tags; the CUDA build (Dockerfile GPU=1) is the same
+    # tags with "-gpu" (0.1.0-gpu, 0.1-gpu, latest-gpu). Neither variant cancels
+    # the other: each is checked and pushed on its own.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - gpu: "0"
+            suffix: ""
+          - gpu: "1"
+            suffix: "-gpu"
+[% endif %]    permissions:
       contents: read
       packages: write
     steps:
@@ -146,12 +157,22 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/[[ image_name ]]
-          labels: org.opencontainers.image.revision=${{ needs.release-tag.outputs.sha }}
+[% if gpu_variant %]          flavor: |
+            suffix=${{ matrix.suffix }},onlatest=true
+[% endif %]          labels: org.opencontainers.image.revision=${{ needs.release-tag.outputs.sha }}
           tags: |
             type=semver,pattern={{version}},value=${{ needs.release-tag.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-tag.outputs.tag }}
-            type=raw,value=latest
-      - uses: docker/build-push-action@v7
+            # Only a final release moves `latest`. The trigger is `v*`, so without
+            # this guard a `v0.2.0-rc1` tag would repoint every `:latest` user at a
+            # candidate (tests/test_image_version.py checks it).
+            type=raw,value=latest,enable=${{ !contains(needs.release-tag.outputs.tag, '-') }}
+[% if gpu_variant %]      # The package version, from the tag: meta's version carries the "-gpu" suffix.
+      - id: ver
+        env:
+          TAG: ${{ needs.release-tag.outputs.tag }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+[% endif %]      - uses: docker/build-push-action@v7
         with:
           context: .
           file: ./[[ dockerfile ]]
@@ -160,20 +181,24 @@ jobs:
           # The version the image reports comes from the tag, not from git inside
           # the build (argus-scout v0.1.0 shipped reporting 0.1.1.dev0+g<sha>.d<date>).
           build-args: |
-            VERSION=${{ steps.meta.outputs.version }}
-          tags: ${{ steps.meta.outputs.tags }}
+[% if gpu_variant %]            VERSION=${{ steps.ver.outputs.version }}
+            GPU=${{ matrix.gpu }}
+[% else %]            VERSION=${{ steps.meta.outputs.version }}
+[% endif %]          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # A dispatch rebuilds an unchanged context, so a cached install layer
           # would keep the old argus-cortex.
           no-cache: ${{ github.event_name == 'repository_dispatch' }}
-          cache-from: type=gha
+[% if gpu_variant %]          cache-from: type=gha,scope=image${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=image${{ matrix.suffix }}
+[% else %]          cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: The image reports the tag's version
+[% endif %]      - name: The image reports the tag's version
         id: version-check
         # Compared as PEP 440 versions: a v0.3.0-rc1 tag reports 0.3.0rc1.
         env:
           IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
-          WANT: ${{ steps.meta.outputs.version }}
+          WANT: ${{ steps.[[ 'ver' if gpu_variant else 'meta' ]].outputs.version }}
         run: |
           docker run --rm -i -e WANT "$IMAGE" python - <<'PY'
           import os
