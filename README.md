@@ -79,10 +79,12 @@ is ignored.
   checks out at `fetch-depth: 1`, and a local build with no build-arg falls back
   to `0.0.0.dev0`.
 
-Either way, `.dockerignore` must never list a path git tracks (`.github`,
+With `false`, `.dockerignore` must never list a path git tracks (`.github`,
 `docs`, ...). Git inside the build sees it deleted and versions the image as a
-dirty dev build (`X.Y.(Z+1).dev0+g<sha>.d<date>`). The generated
-`tests/test_image_version.py` checks that, and that the build-arg stays wired.
+dirty dev build (`X.Y.(Z+1).dev0+g<sha>.d<date>`). With `true` there is no git
+in the build, so an allow-list `.dockerignore` (`*`, then `!src/` ...) is fine.
+The generated `tests/test_image_version.py` checks the first (skipping it under
+`true`), and that the build-arg stays wired either way.
 
 ## Only a final release moves `latest`
 
