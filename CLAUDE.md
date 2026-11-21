@@ -20,6 +20,7 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
 | The release workflow made a call into argus-ci | PyPI refuses trusted publishing from a reusable workflow (its `job_workflow_ref` check) |
 | A generated workflow testing a Python outside `requires-python` (a hard-coded 3.11 failed argus-scout's first release) | `render.yml` renders `python_min` 3.11 and 3.12; the package's `tests/test_workflows.py` |
 | A generated image reporting a different version than its tag (argus-scout 0.1.0 shipped as `0.1.1.dev0+g<sha>.d<date>`) | The generated release builds with `VERSION` from the tag and pushes only after the image reports it; the package's `tests/test_image_version.py` (build-arg wired, `.dockerignore` drops no tracked file) |
+| A pre-release tag (`v0.2.0-rc1`) moving a generated image's `latest` (the `v*` trigger matches it; argus-forge and argus-puppet each patched this locally) | The package's `tests/test_image_version.py::test_only_a_final_release_moves_latest` |
 | A seed whose Branches text differs from the suite's shared rule | **UNENFORCED** |
 
 ## Layout

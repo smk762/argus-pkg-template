@@ -150,7 +150,10 @@ jobs:
           tags: |
             type=semver,pattern={{version}},value=${{ needs.release-tag.outputs.tag }}
             type=semver,pattern={{major}}.{{minor}},value=${{ needs.release-tag.outputs.tag }}
-            type=raw,value=latest
+            # Only a final release moves `latest`. The trigger is `v*`, so without
+            # this guard a `v0.2.0-rc1` tag would repoint every `:latest` user at a
+            # candidate (tests/test_image_version.py checks it).
+            type=raw,value=latest,enable=${{ !contains(needs.release-tag.outputs.tag, '-') }}
       - uses: docker/build-push-action@v7
         with:
           context: .
