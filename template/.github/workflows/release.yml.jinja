@@ -41,7 +41,9 @@ jobs:
     needs: build
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        # python_min and the next minor, as in ci.yml (tests/test_workflows.py checks
+        # every version here satisfies requires-python).
+[% set py_minor = python_min.split('.')[1] | int %]        python-version: ["[[ python_min ]]", "3.[[ py_minor + 1 ]]"]
     steps:
       - uses: actions/download-artifact@v8
         with:
@@ -153,13 +155,44 @@ jobs:
         with:
           context: .
           file: ./[[ dockerfile ]]
-          push: true
-[% if version_build_arg %]          build-args: |
+          # Loaded locally, not pushed: the version check below gates the push.
+          load: true
+          # The version the image reports comes from the tag, not from git inside
+          # the build (argus-scout v0.1.0 shipped reporting 0.1.1.dev0+g<sha>.d<date>).
+          build-args: |
             VERSION=${{ steps.meta.outputs.version }}
-[% endif %]          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # A dispatch rebuilds an unchanged context, so a cached install layer
           # would keep the old argus-cortex.
           no-cache: ${{ github.event_name == 'repository_dispatch' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: The image reports the tag's version
+        id: version-check
+        # Compared as PEP 440 versions: a v0.3.0-rc1 tag reports 0.3.0rc1.
+        env:
+          IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          WANT: ${{ steps.meta.outputs.version }}
+        run: |
+          docker run --rm -i -e WANT "$IMAGE" python - <<'PY'
+          import os
+          import sys
+
+          from pip._vendor.packaging.version import Version
+
+          import [[ package_name ]]
+
+          got, want = [[ package_name ]].__version__, os.environ["WANT"]
+          print(f"image reports {got}, tag is {want}")
+          if Version(got) != Version(want):
+              print(f"::error::The image reports {got}, not {want}")
+              sys.exit(1)
+          PY
+      - name: Push the checked image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          for tag in $TAGS; do
+            docker push "$tag"
+          done

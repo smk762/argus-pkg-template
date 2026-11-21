@@ -17,6 +17,9 @@ jobs:
   ci:
     uses: [[ github_owner ]]/argus-ci/.github/workflows/python-ci.yml@v1
     with:
+      # python_min and the next minor, as in release.yml (tests/test_workflows.py checks
+      # every version here satisfies requires-python; argus-ci's default is 3.11 + 3.12).
+[% set py_minor = python_min.split('.')[1] | int %]      python-versions: '["[[ python_min ]]", "3.[[ py_minor + 1 ]]"]'
 [% if ruff_pin %]      ruff-version: "[[ ruff_pin ]]"
 [% endif %]      test-extras: "[[ test_extras ]]"
 [% if post_test %]      post-test: "[[ post_test ]]"

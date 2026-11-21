@@ -86,5 +86,5 @@ image_name:
 
 version_build_arg:
   type: bool
-  help: "Build the image from a VERSION build-arg instead of git history (excludes .git, skips installing git)"
+  help: "Keep git out of the image (excludes .git, skips installing git; local builds report 0.0.0.dev0)? The release always passes VERSION."
   default: false
