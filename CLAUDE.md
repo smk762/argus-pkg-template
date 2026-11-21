@@ -12,7 +12,9 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
 
 | Never | Enforced by |
 |---|---|
-| A render that fails, or whose package doesn't install, lint or pass its tests, with `has_cli` / `has_server` on or off | `render.yml` (a matrix over both flags) |
+| A render that fails, or whose package doesn't install, lint or pass its tests, with `has_cli` / `has_server` / `gpu_variant` on or off | `render.yml` (a matrix over `has_cli` x `has_server` x `python_min`, plus two `gpu_variant: true` entries) |
+| A rendered workflow actionlint rejects | `render.yml` (actionlint on every render) |
+| `gpu_variant: false` changing a rendered file (an existing package must update to the same bytes) | **UNENFORCED**: render before/after with `--defaults --data-file` and `diff -r` (only `.copier-answers.yml` may differ) |
 | A question with no `default` and no `when:` (it breaks non-interactive scaffolds and prompts on every `copier update`) | `scripts/check_template.py`, which allows only `project_name` and `description` to be asked |
 | README's questions table out of step with `copier.yml` | `scripts/check_template.py` |
 | Stock `{{ }}` / `{% %}` in a template file (copied through as literal text) | `scripts/check_template.py --rendered` |
@@ -36,7 +38,7 @@ Each row names what enforces it. An **UNENFORCED** row is a known gap: when one 
   ```bash
   uvx copier copy --trust . /tmp/scaffold-test --data project_name=argus-x --data description="x" --defaults
   ```
-  Try it with `has_cli` / `has_server` both on and off — those flags gate whole blocks (`[% if has_server %]…[% endif %]`).
+  Try it with `has_cli` / `has_server` / `gpu_variant` on and off — those flags gate whole blocks (`[% if has_server %]…[% endif %]`).
 - Conditional fields use `when:` in `copier.yml` (e.g. `cli_name` only when `has_cli`). Whitespace in `[% if %]` blocks is load-bearing in rendered output (pyproject/Dockerfile) — match the existing style.
 - The **release** workflow is intentionally a top-level workflow, not a call into `argus-ci`: PyPI trusted publishing can't run inside a reusable workflow.
 - When you add a new templated file, no registration is needed — Copier renders everything under `template/`. Just make sure it uses the remapped delimiters.

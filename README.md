@@ -56,6 +56,7 @@ changes — handy for propagating CI/release/tooling updates across the suite.
 | `dockerfile`        | `Dockerfile`                     | Dockerfile used by the release image build.         |
 | `image_name`        | `project_name`                   | GHCR image name.                                    |
 | `version_build_arg` | `false`                          | Keep git out of the image entirely (see below); the release always passes `VERSION`. |
+| `gpu_variant`       | `false`                          | Also build and publish a CUDA image, `<tag>-gpu` (see below). |
 
 ## How the image gets its version
 
@@ -82,6 +83,51 @@ Either way, `.dockerignore` must never list a path git tracks (`.github`,
 `docs`, ...). Git inside the build sees it deleted and versions the image as a
 dirty dev build (`X.Y.(Z+1).dev0+g<sha>.d<date>`). The generated
 `tests/test_image_version.py` checks that, and that the build-arg stays wired.
+
+## Only a final release moves `latest`
+
+The release triggers on `v*`, so it also runs for a pre-release tag such as
+`v0.2.0-rc1`. That tag publishes `0.2.0-rc1` but never moves `latest` (or
+`latest-gpu`): the `latest` entry carries
+`enable=${{ !contains(needs.release-tag.outputs.tag, '-') }}`. Before this,
+the template moved `latest` on every tag; argus-forge and argus-puppet each
+patched it locally, and a `copier update` now brings the same guard. The
+generated `tests/test_image_version.py` checks it.
+
+## GPU image (`gpu_variant`)
+
+For a package that runs on CUDA when it can (ONNX Runtime, torch) and on CPU
+otherwise. With `gpu_variant: true`:
+
+- the Dockerfile takes `ARG GPU=0`. `GPU=1` installs the package's `gpu` extra,
+  the default `GPU=0` its `cpu` extra (on top of `server` when `has_server`).
+  Declare both in `pyproject.toml`; for ONNX Runtime they are `onnxruntime` and
+  `onnxruntime-gpu`, which share one module directory, so install exactly one.
+  The base stays `python:*-slim`: CUDA and cuDNN can come as NVIDIA's pip wheels
+  (`onnxruntime-gpu[cuda,cudnn]`).
+- the release's `publish-image` job is a two-entry matrix: the CPU image keeps
+  its tags, the CUDA image gets the same tags with `-gpu` (`0.1.0-gpu`,
+  `0.1-gpu`, `latest-gpu`). Each variant has its own GHA cache scope, passes
+  `GPU` and the tag's version as build-args, and is checked (it reports the
+  tag's version) and pushed on its own (`fail-fast: false`).
+
+Off, the rendered files are exactly what they were before the question existed
+(apart from `gpu_variant: false` in `.copier-answers.yml`).
+
+What stays a local edit: anything specific to the package's runtime — the
+extras' contents, a check that the CUDA provider really loaded, a model volume,
+a non-root user, a compose file with a `gpu` profile.
+
+Adopt it in an existing repo:
+
+```bash
+uvx copier update --trust --data gpu_variant=true
+```
+
+then resolve any conflicts in `Dockerfile` and `.github/workflows/release.yml`
+in favour of the template's GPU blocks (a hand-rolled GPU matrix from before
+this option conflicts once; later updates merge cleanly), make sure
+`pyproject.toml` has `cpu` and `gpu` extras, and run `make test`.
 
 ## Python versions
 

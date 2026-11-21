@@ -88,3 +88,8 @@ version_build_arg:
   type: bool
   help: "Keep git out of the image (excludes .git, skips installing git; local builds report 0.0.0.dev0)? The release always passes VERSION."
   default: false
+
+gpu_variant:
+  type: bool
+  help: "Also publish a CUDA image? The Dockerfile takes ARG GPU=0|1 (installs the package's cpu or gpu extra) and the release pushes it as <tag>-gpu."
+  default: false
