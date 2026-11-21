@@ -1,8 +1,10 @@
-[% if version_build_arg %]# The version comes in as a build-arg, so git history is not needed.
+[% if version_build_arg %]# The version comes in as a build-arg and the image has no git, so .git is not needed.
 .git
 [% else %]# NOTE: .git is deliberately *not* ignored -- hatch-vcs reads the version from
-# git history at build time. Set `version_build_arg` if you want it excluded.
-[% endif %].github
+# git history when a build passes no VERSION build-arg (a local `docker build .`).
+[% endif %]# Never list a path git tracks here (.github, docs, ...): git inside the build sees it
+# deleted, calls the tree dirty and versions the image X.Y.(Z+1).dev0+g<sha>.d<date>.
+# tests/test_image_version.py checks this.
 .venv
 venv
 dist

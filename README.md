@@ -46,7 +46,7 @@ changes — handy for propagating CI/release/tooling updates across the suite.
 | `author`            | `smk762`                         | Author in pyproject and LICENSE.                    |
 | `github_owner`      | `smk762`                         | GitHub owner used in links and the argus-ci workflow calls. |
 | `brand_mark`        | `false`                          | README title is the package lockup from argus-cortex `brand/` (light/dark). Turn on once `brand/packages/<name>/` exists. |
-| `python_min`        | `3.11`                           | Minimum Python.                                     |
+| `python_min`        | `3.11`                           | Minimum Python; CI and release test it and the next minor. |
 | `has_cli`           | `true`                           | Adds a Typer `cli` extra + console script.          |
 | `cli_name`          | `project_name`                   | Console script name (asked only when `has_cli`).    |
 | `has_server`        | `false`                          | Adds a FastAPI `server` extra + Docker `CMD`.       |
@@ -55,21 +55,37 @@ changes — handy for propagating CI/release/tooling updates across the suite.
 | `post_test`         | `""`                             | Optional CI command after pytest (e.g. a schema check). |
 | `dockerfile`        | `Dockerfile`                     | Dockerfile used by the release image build.         |
 | `image_name`        | `project_name`                   | GHCR image name.                                    |
-| `version_build_arg` | `false`                          | Pass `VERSION` build-arg instead of reading git history (see below). |
+| `version_build_arg` | `false`                          | Keep git out of the image entirely (see below); the release always passes `VERSION`. |
 
 ## How the image gets its version
 
-`hatch-vcs` derives the version from git, and the Docker build has to satisfy it
-one of two ways:
+The release builds the image with the tag as the `VERSION` build-arg, then runs
+the loaded image, imports the package and compares its `__version__` to the tag
+(as PEP 440 versions, so `v0.3.0-rc1` matches `0.3.0rc1`). Only a match is
+pushed. The Dockerfile hands `VERSION` to hatch-vcs as
+`SETUPTOOLS_SCM_PRETEND_VERSION` in the one shell that builds the package's
+wheel, never as an `ENV`: that would persist in the image and also version any
+dependency built from source. It must be the plain spelling — hatch-vcs passes
+no dist name to setuptools-scm, so `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_<DIST>`
+is ignored.
 
-- **`version_build_arg: false`** (default) — `.git` stays in the build context
-  and the image installs the `git` binary, which `python:*-slim` does not ship.
-  Without that install the build fails with
-  `LookupError: Error getting the version from source 'vcs'`.
-- **`version_build_arg: true`** — no git at all. The Dockerfile takes an
-  `ARG VERSION` and exports `SETUPTOOLS_SCM_PRETEND_VERSION`; `.dockerignore`
-  excludes `.git` and the release job checks out at `fetch-depth: 1` and passes
-  the tag as a build-arg. A local `docker build .` with no build-arg falls back
-  to `0.0.0.dev0`. Note it must be the plain `SETUPTOOLS_SCM_PRETEND_VERSION` —
-  hatch-vcs passes no dist name to setuptools-scm, so the documented
-  `SETUPTOOLS_SCM_PRETEND_VERSION_FOR_<DIST>` spelling is ignored.
+`version_build_arg` only decides what a build *without* the build-arg does:
+
+- **`false`** (default) — a local `docker build .` versions from git, so `.git`
+  stays in the build context and the image installs the `git` binary, which
+  `python:*-slim` does not ship.
+- **`true`** — no git at all: `.dockerignore` excludes `.git`, the release job
+  checks out at `fetch-depth: 1`, and a local build with no build-arg falls back
+  to `0.0.0.dev0`.
+
+Either way, `.dockerignore` must never list a path git tracks (`.github`,
+`docs`, ...). Git inside the build sees it deleted and versions the image as a
+dirty dev build (`X.Y.(Z+1).dev0+g<sha>.d<date>`). The generated
+`tests/test_image_version.py` checks that, and that the build-arg stays wired.
+
+## Python versions
+
+`python_min` sets `requires-python`, the Docker base image, ruff's target, and
+the versions CI and the release's `test-install` job run on: `python_min` and
+the next minor. The generated `tests/test_workflows.py` fails if a workflow
+names a Python outside `requires-python`.

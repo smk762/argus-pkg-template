@@ -1,7 +1,8 @@
 name: render
 
 # The template's own CI. A broken Jinja expression only surfaces at scaffold time, so every PR renders
-# the template with has_cli and has_server on and off, then lints and tests what it produced.
+# the template with has_cli and has_server on and off and python_min 3.11 and 3.12, then lints and
+# tests what it produced.
 # scripts/check_template.py also checks that every question has a default or a `when:`, that the
 # README questions table matches copier.yml, and that no stock `{{ }}` / `{% %}` survives a render.
 
@@ -29,6 +30,7 @@ jobs:
       matrix:
         has_cli: [true, false]
         has_server: [true, false]
+        python_min: ["3.11", "3.12"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,7 +40,8 @@ jobs:
         run: |
           uvx copier copy --trust --defaults --vcs-ref HEAD . "$RUNNER_TEMP/out" \
             --data project_name=argus-render-check --data description="Render check" \
-            --data has_cli=${{ matrix.has_cli }} --data has_server=${{ matrix.has_server }}
+            --data has_cli=${{ matrix.has_cli }} --data has_server=${{ matrix.has_server }} \
+            --data python_min=${{ matrix.python_min }}
       - name: No stock Jinja delimiters survived
         run: uv run --no-project --with pyyaml python scripts/check_template.py --rendered "$RUNNER_TEMP/out"
       - name: The rendered package installs, lints and passes its tests
