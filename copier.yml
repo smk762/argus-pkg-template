@@ -11,6 +11,11 @@ _envops:
   comment_start_string: "[#"
   comment_end_string: "#]"
 
+# Seeded on `copier copy` only. A repo's changelog is its own history: `copier update`
+# never touches an existing one.
+_skip_if_exists:
+  - CHANGELOG.md
+
 project_name:
   type: str
   help: "Distribution / pip name (e.g. argus-widget)"
