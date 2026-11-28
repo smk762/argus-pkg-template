@@ -4,6 +4,9 @@ A [Copier](https://copier.readthedocs.io) template for new Python packages in th
 [Argus suite](https://github.com/smk762?tab=repositories&q=argus). It bakes in the
 suite's conventions so repos start consistent and stay that way via `copier update`.
 
+Why the suite is built this way, and what it costs to run:
+[One release pipeline for sixteen packages](https://dragonhound.dev/updates/2026-11-27-one-release-pipeline/).
+
 What you get:
 
 - `uv`-based tooling (`Makefile`, editable installs, `uv build`)
